@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 import SsrSelector from './fixtures/ssr-selector.marko'
 import SsrAtom from './fixtures/ssr-atom.marko'
 import SsrObjectAntipattern from './fixtures/ssr-object-antipattern.marko'
-import { counterStore } from './fixtures/ssr-store'
+import { countAtom, counterStore } from './fixtures/ssr-store'
 
 async function renderToString(
   template: any,
@@ -45,7 +45,7 @@ describe('SSR render — thunk channel', () => {
 
   it('<store-atom> renders server-side and seeds the value', async () => {
     const html = await renderToString(SsrAtom, {})
-    expect(cell(html, 'value')).toBe('7')
+    expect(cell(html, 'value')).toBe(String(countAtom.get()))
   })
 })
 
