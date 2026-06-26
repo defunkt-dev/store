@@ -1,0 +1,73 @@
+export interface Input<TSource, TSelected = TSource> {
+  from: () => {
+    get(): TSource
+    subscribe(listener: (value: TSource) => void): { unsubscribe(): void }
+  }
+  selector?: (snapshot: TSource) => TSelected
+  compare?: (a: TSelected, b: TSelected) => boolean
+}
+
+<const/defaultCompare=((a, b) => a === b)/>
+<const/select=(input.selector ?? ((snapshot) => snapshot))/>
+<let/value=(select(input.from().get()))/>
+
+<lifecycle<{
+  unsub: (() => void) | null
+  src: ReturnType<Input<TSource, TSelected>["from"]> | null
+  sel: Input<TSource, TSelected>["selector"]
+  last: unknown
+}>
+  onMount() {
+    const source = input.from()
+    this.src = source
+    this.sel = input.selector
+    const selector = input.selector ?? ((snapshot: any) => snapshot)
+    this.last = selector(source.get())
+    value = this.last as any
+    this.unsub = source.subscribe((snapshot) => {
+      const sel = input.selector ?? ((s: any) => s)
+      const cmp = input.compare ?? defaultCompare
+      const next = sel(snapshot)
+      if (!cmp(this.last as any, next)) {
+        this.last = next
+        value = next as any
+      }
+    }).unsubscribe
+  }
+
+  onUpdate() {
+    const source = input.from()
+    const selector = input.selector ?? ((snapshot: any) => snapshot)
+    const cmp = input.compare ?? defaultCompare
+    if (source !== this.src) {
+      this.unsub?.()
+      this.src = source
+      this.sel = input.selector
+      this.last = selector(source.get())
+      value = this.last as any
+      this.unsub = source.subscribe((snapshot) => {
+        const sel = input.selector ?? ((s: any) => s)
+        const c = input.compare ?? defaultCompare
+        const next = sel(snapshot)
+        if (!c(this.last as any, next)) {
+          this.last = next
+          value = next as any
+        }
+      }).unsubscribe
+    } else if (input.selector !== this.sel) {
+      this.sel = input.selector
+      const next = selector(source.get())
+      if (!cmp(this.last as any, next)) {
+        this.last = next
+        value = next as any
+      }
+    }
+  }
+
+  onDestroy() {
+    this.unsub?.()
+    this.unsub = null
+  }
+/>
+
+<return=value/>

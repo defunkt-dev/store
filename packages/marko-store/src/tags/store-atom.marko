@@ -1,0 +1,23 @@
+export interface Input<T> {
+  from: () => {
+    get(): T
+    set(value: T | ((prev: T) => T)): void
+    subscribe(listener: (value: T) => void): { unsubscribe(): void }
+  }
+}
+
+<let/value=(input.from().get())/>
+
+<lifecycle<{ unsub: (() => void) | null }>
+  onMount() {
+    this.unsub = input.from().subscribe((next) => {
+      value = next as any
+    }).unsubscribe
+  }
+  onDestroy() {
+    this.unsub?.()
+    this.unsub = null
+  }
+/>
+
+<return=value valueChange(next) { input.from().set(next) }/>
