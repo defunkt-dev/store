@@ -2,7 +2,13 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     "packages/marko-store": {
-      "entry": ["src/index.ts", "src/tags/**/*.marko"],
+      "entry": [
+        "src/index.ts",
+        "src/tags/**/*.marko",
+        "e2e/server.mjs",
+        "e2e/src/index.js",
+        "e2e/src/store.js"
+      ],
       "ignoreDependencies": ["@marko/language-tools", "marko"]
     },
     "packages/vue-store": {

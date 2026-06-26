@@ -31,6 +31,7 @@
     "test:lib": "vitest",
     "test:lib:dev": "pnpm run test:lib --watch",
     "test:build": "publint --strict",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "build": "tsdown --tsconfig tsconfig.build.json"
   },
   "type": "module",
@@ -66,6 +67,7 @@
     "@marko/language-tools": "^2.6.0",
     "@marko/type-check": "^3.1.0",
     "@marko/vite": "^6",
+    "@playwright/test": "^1.60.0",
     "@testing-library/dom": "^10.4.0",
     "marko": "^6"
   },
