@@ -6,8 +6,8 @@
         "src/index.ts",
         "src/tags/**/*.marko",
         "e2e/server.mjs",
-        "e2e/src/index.js",
-        "e2e/src/store.js"
+        "e2e/src/index.ts",
+        "e2e/src/store.ts"
       ],
       "ignoreDependencies": ["@marko/language-tools", "marko"]
     },

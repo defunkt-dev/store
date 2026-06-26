@@ -25,7 +25,7 @@ const devServer = await createViteServer({
 devServer.middlewares.use(async (req, res, next) => {
   try {
     const { handler } = await devServer.ssrLoadModule(
-      path.join(__dirname, './src/index.js'),
+      path.join(__dirname, './src/index.ts'),
     )
     await handler(req, res, next)
   } catch (err) {

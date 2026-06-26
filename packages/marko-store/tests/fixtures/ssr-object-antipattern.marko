@@ -10,7 +10,7 @@ export interface Input {
   }
 }
 
-<let/value=(input.store.get())/>
+<let/value=input.store.get()>
 <lifecycle<{ unsub?: (() => void) | null }>
   onMount() {
     this.unsub = input.store.subscribe((next) => {
@@ -21,5 +21,5 @@ export interface Input {
     this.unsub?.()
     this.unsub = null
   }
-/>
-<div data-testid="x">${JSON.stringify(value)}</div>
+>
+<div data-testid='x'>${JSON.stringify(value)}</div>

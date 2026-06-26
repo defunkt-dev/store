@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "moduleResolution": "Bundler",
     "noEmit": true,
     "paths": {},
     "types": ["node"]
@@ -9,6 +10,8 @@
     "src/**/*.ts",
     "src/**/*.marko",
     "tests/**/*.ts",
-    "tests/**/*.marko"
+    "tests/**/*.marko",
+    "e2e/**/*.ts",
+    "e2e/**/*.marko"
   ]
 }

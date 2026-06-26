@@ -1,4 +1,4 @@
-import StoreSelector from "../../src/tags/store-selector.marko"
+import StoreSelector from '../../src/tags/store-selector.marko'
 
 export interface Input {
   from: () => {
@@ -9,4 +9,4 @@ export interface Input {
 }
 
 <StoreSelector/value from=input.from selector=input.selector/>
-<div data-testid="value">${value}</div>
+<div data-testid='value'>${value}</div>
