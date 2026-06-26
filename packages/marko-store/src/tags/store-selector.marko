@@ -7,15 +7,15 @@ export interface Input<TSource, TSelected = TSource> {
   compare?: (a: TSelected, b: TSelected) => boolean
 }
 
-<const/defaultCompare=((a, b) => a === b)/>
+<const/defaultCompare=((a: any, b: any) => a === b)/>
 <const/select=(input.selector ?? ((snapshot) => snapshot))/>
 <let/value=(select(input.from().get()))/>
 
 <lifecycle<{
-  unsub: (() => void) | null
-  src: ReturnType<Input<TSource, TSelected>["from"]> | null
-  sel: Input<TSource, TSelected>["selector"]
-  last: unknown
+  unsub?: (() => void) | null
+  src?: ReturnType<Input<TSource, TSelected>["from"]> | null
+  sel?: Input<TSource, TSelected>["selector"]
+  last?: unknown
 }>
   onMount() {
     const source = input.from()

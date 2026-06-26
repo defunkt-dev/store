@@ -126,4 +126,4 @@ describe('<store-selector> onUpdate', () => {
     store.setState((s) => ({ ...s, other: 43 }))
     await waitFor(() => expect(cell(el, 'value')).toBe('43'))
   })
-});
+})

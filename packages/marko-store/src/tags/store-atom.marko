@@ -8,7 +8,7 @@ export interface Input<T> {
 
 <let/value=(input.from().get())/>
 
-<lifecycle<{ unsub: (() => void) | null }>
+<lifecycle<{ unsub?: (() => void) | null }>
   onMount() {
     this.unsub = input.from().subscribe((next) => {
       value = next as any

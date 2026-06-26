@@ -3,7 +3,7 @@
   "workspaces": {
     "packages/marko-store": {
       "entry": ["src/index.ts", "src/tags/**/*.marko"],
-      "ignoreDependencies": ["marko", "@marko/vite"]
+      "ignoreDependencies": ["@marko/language-tools", "@marko/type-check", "@marko/vite", "marko"]
     },
     "packages/vue-store": {
       "ignoreDependencies": ["vue2", "vue2.7"]

@@ -11,7 +11,7 @@ export interface Input {
 }
 
 <let/value=(input.store.get())/>
-<lifecycle<{ unsub: (() => void) | null }>
+<lifecycle<{ unsub?: (() => void) | null }>
   onMount() {
     this.unsub = input.store.subscribe((next) => {
       value = next

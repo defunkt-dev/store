@@ -16,6 +16,6 @@ export interface Input {
 
 <let/useB=false/>
 <const/active=(useB ? input.storeB : input.storeA)/>
-<StoreSelector/value from=(() => active) selector=(s => s.count)/>
+<StoreSelector/value from=(() => active) selector=((s: any) => s.count)/>
 <div data-testid="value">${value}</div>
 <button data-testid="swap" onClick() { useB = !useB }>swap source</button>
