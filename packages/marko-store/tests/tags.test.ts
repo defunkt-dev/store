@@ -21,11 +21,17 @@ import SelectorHostTemplate from './fixtures/selector-host.marko'
 import AtomHostTemplate from './fixtures/atom-host.marko'
 import SourceSwapHostTemplate from './fixtures/selector-source-swap-host.marko'
 import SelectorSwapHostTemplate from './fixtures/selector-selector-swap-host.marko'
+import NoSelectorHostTemplate from './fixtures/selector-no-selector-host.marko'
+import CustomCompareHostTemplate from './fixtures/selector-custom-compare-host.marko'
+import NoSelectorSwapHostTemplate from './fixtures/selector-no-selector-swap-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const AtomHost = AtomHostTemplate as any
 const SourceSwapHost = SourceSwapHostTemplate as any
 const SelectorSwapHost = SelectorSwapHostTemplate as any
+const NoSelectorHost = NoSelectorHostTemplate as any
+const CustomCompareHost = CustomCompareHostTemplate as any
+const NoSelectorSwapHost = NoSelectorSwapHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 
@@ -71,6 +77,35 @@ describe('<store-selector> read path', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(cell(el, 'value')).toBe('5')
   })
+
+  test('with no selector, passes the whole snapshot through and updates', async () => {
+    const store = createStore({ count: 5, other: 0 })
+    const el = mount(NoSelectorHost, { from: () => store })
+    expect(cell(el, 'value')).toBe(JSON.stringify({ count: 5, other: 0 }))
+
+    // No selector => identity, so any field change produces a new snapshot and
+    // the default === compare sees a different object, so the value updates.
+    store.setState((s) => ({ ...s, count: 6 }))
+    await waitFor(() =>
+      expect(cell(el, 'value')).toBe(JSON.stringify({ count: 6, other: 0 })),
+    )
+  })
+
+  test('uses a supplied compare to decide whether the value updates', async () => {
+    const store = createStore({ count: 0 })
+    const el = mount(CustomCompareHost, { from: () => store })
+    expect(cell(el, 'value')).toBe('0')
+
+    // Within tolerance (|0 - 1| < 10): the custom compare reports equal, so the
+    // tag must not re-render even though the selected slice changed.
+    store.setState(() => ({ count: 1 }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(cell(el, 'value')).toBe('0')
+
+    // Outside tolerance (|0 - 100| >= 10): not equal, so the value updates.
+    store.setState(() => ({ count: 100 }))
+    await waitFor(() => expect(cell(el, 'value')).toBe('100'))
+  })
 })
 
 describe('<store-atom> write path', () => {
@@ -84,6 +119,16 @@ describe('<store-atom> write path', () => {
 
     await waitFor(() => expect(cell(el, 'value')).toBe('8'))
     expect(atom.get()).toBe(8)
+  })
+
+  test('reflects an external atom mutation, not just local writes', async () => {
+    const atom = createAtom(7)
+    const el = mount(AtomHost, { from: () => atom })
+    expect(cell(el, 'value')).toBe('7')
+
+    // Mutate from outside the tag; the tag's subscription drives the update.
+    atom.set(42)
+    await waitFor(() => expect(cell(el, 'value')).toBe('42'))
   })
 })
 
@@ -125,5 +170,27 @@ describe('<store-selector> onUpdate', () => {
     // The live subscription reflects the new selector on the next change.
     store.setState((s) => ({ ...s, other: 43 }))
     await waitFor(() => expect(cell(el, 'value')).toBe('43'))
+  })
+
+  test('with no selector, resubscribes to a swapped source', async () => {
+    const storeA = createStore({ count: 1 })
+    const storeB = createStore({ count: 100 })
+    const el = mount(NoSelectorSwapHost, { storeA, storeB })
+    expect(cell(el, 'value')).toBe(JSON.stringify({ count: 1 }))
+
+    // Swap the source with no selector in play: onUpdate takes the resubscribe
+    // branch and re-seeds via the identity passthrough.
+    ;(el.querySelector("[data-testid='swap']") as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await waitFor(() =>
+      expect(cell(el, 'value')).toBe(JSON.stringify({ count: 100 })),
+    )
+
+    // The new source is now the observed one.
+    storeB.setState(() => ({ count: 101 }))
+    await waitFor(() =>
+      expect(cell(el, 'value')).toBe(JSON.stringify({ count: 101 })),
+    )
   })
 })
