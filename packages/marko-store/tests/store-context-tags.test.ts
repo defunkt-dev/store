@@ -11,11 +11,13 @@ import SelectorHostTemplate from './fixtures/ctx-selector-host.marko'
 import WriteHostTemplate from './fixtures/ctx-write-host.marko'
 import NoProviderHostTemplate from './fixtures/ctx-no-provider-host.marko'
 import MultiHostTemplate from './fixtures/ctx-multi-host.marko'
+import NestedHostTemplate from './fixtures/ctx-nested-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const WriteHost = WriteHostTemplate as any
 const NoProviderHost = NoProviderHostTemplate as any
 const MultiHost = MultiHostTemplate as any
+const NestedHost = NestedHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 function mount(T: any, input: Record<string, unknown> = {}) {
@@ -76,5 +78,23 @@ describe('<store-selector context> with multiple stores in one provider', () => 
     ;(el.querySelector("[data-testid='write-a']") as HTMLButtonElement).click()
     await waitFor(() => expect(cell(el, 'count-a')).toBe('9'))
     expect(cell(el, 'count-b')).toBe('101') // the <store-context> write hit a only
+  })
+})
+
+describe('nested <store-provider> with distinct keys', () => {
+  test('an inner provider nests under an outer one; a child reads either bundle by key, independently', async () => {
+    const outer = createStore({ count: 1 })
+    const inner = createStore({ count: 50 })
+    const el = mount(NestedHost, { outer, inner })
+    expect(cell(el, 'app')).toBe('1') // outer bundle, key "outer"
+    expect(cell(el, 'section')).toBe('50') // inner bundle, key "inner"
+
+    outer.setState(() => ({ count: 2 }))
+    await waitFor(() => expect(cell(el, 'app')).toBe('2'))
+    expect(cell(el, 'section')).toBe('50') // inner untouched by outer's change
+
+    inner.setState(() => ({ count: 51 }))
+    await waitFor(() => expect(cell(el, 'section')).toBe('51'))
+    expect(cell(el, 'app')).toBe('2') // outer untouched by inner's change
   })
 })

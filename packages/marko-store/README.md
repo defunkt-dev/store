@@ -254,6 +254,23 @@ The per-request version above exists only because server rendering needs a fresh
 of stores for every request. A browser-only app has just one session, so module-level
 stores are fine.
 
+### Module-level vs per-request stores
+
+A **module-level store** is created once, at the top of a module
+(`static const store = createStore(...)`), and there is a single shared instance for
+the whole process. That is exactly right for a browser-only app — one user, one
+session — and it's what the selector and atom examples above use.
+
+A **per-request store** is created inside the provider's `value` from incoming data
+(`createStore(input.data)`), so a fresh instance is built for each request, and again
+on the client during resume.
+
+Why it matters: on a server a module-level store is shared by *every* request at once,
+so one visitor's state would leak into another's. Server rendering therefore needs
+per-request stores. A browser-only app doesn't have that problem, so either works.
+Rule of thumb: server-rendered → build the stores per request from data; browser-only
+→ module-level stores are fine.
+
 ### `<store-provider>` attributes
 
 | Attribute | Required | Description                                                       |
