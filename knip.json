@@ -4,10 +4,11 @@
     "packages/marko-store": {
       "entry": [
         "src/index.ts",
-        "src/tags/**/*.marko",
+        "src/tags/**/*",
         "e2e/server.mjs",
         "e2e/src/index.ts",
-        "e2e/src/store.ts"
+        "e2e/src/store.ts",
+        "e2e/src/context-store.ts"
       ],
       "ignoreDependencies": ["@marko/language-tools", "marko"]
     },
