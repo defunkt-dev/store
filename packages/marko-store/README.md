@@ -198,9 +198,11 @@ It fills a similar role, but it isn't a generic context tag — and Marko's own
 mechanism is worth knowing.
 
 "Context" usually means sharing a value down the tree without threading it through
-every tag in between — a theme, the current user, a request id. Marko has no
-`<context>` tag for this; its built-in mechanism is `$global` (the same object older
-Marko calls `out.global`): a plain bag of values attached to one render. Two things
+every tag in between — a theme, the current user, a request id. Marko v5 did have a
+`<context>` tag for this, but it isn't reactive and doesn't survive resume; Marko 6 —
+the tags API this adapter targets — has no `<context>` tag at all. Either way, the
+built-in way to share a value is `$global` (the same object older Marko calls
+`out.global`): a plain bag of values attached to one render. Two things
 matter about it. It is **not reactive** — writing to `$global` doesn't re-render
 anything. And it exists on **both** the server and the client render, but a value you
 set on the server only reaches the client if you name it in `$global.serializedGlobals`
