@@ -81,7 +81,9 @@ A store holds *live* state. Reading `store.state.count` once gives you the numbe
 that instant and nothing more — when the store changes later, your markup won't.
 `<store-selector>` subscribes to the store for you and re-renders only when the slice
 you selected changes. So `${store.state.count}` would show a stale `0` forever, while
-`<store-selector>` keeps it correct.
+`<store-selector>` keeps it correct. In short, `<store-selector>` is the piece that
+makes your markup *reactive* to the store — a plain read is a one-off snapshot that
+never updates.
 
 ### Basic use
 
@@ -139,7 +141,20 @@ not re-render:
 </store-selector>
 ```
 
-`key` — choose which provided bundle to read; covered under Sharing stores.
+`context` — read a store out of a bundle a `<store-provider>` shared, instead of from
+a store you hold directly:
+
+```marko
+<store-selector/name context=(c => c.user) selector=(s => s.name)>
+  <p>${name}</p>
+</store-selector>
+```
+
+Use `context` when the store comes from a provider above you; use `from` when you
+already hold the store (imported or module-level). The two are exclusive — exactly one.
+
+`key` — when using `context`, picks which bundle to read if more than one provider is
+in play; covered under Sharing stores.
 
 Swapping the `selector` always re-publishes the new slice; `compare` only suppresses
 repeat updates coming from store changes, never a deliberate change of selector.
@@ -179,20 +194,40 @@ Nesting.)
 
 ### Is this just Marko's missing context tag?
 
-Close, but not the same. Marko core has no context-provider tag; the way it carries
-request-wide values is `$global`, a per-render object the framework hands you.
-`<store-provider>` is built on `$global`, but it adds what a store needs: it can
-rebuild per-request stores from data so the server and client agree, it groups them as
-a bundle, and it has a small recovery step so a child that mounts a beat before the
-provider still catches up. So it isn't a general-purpose context tag — it's a
-store-specific one. For plain context with non-store values, use Marko's `$global`
-directly.
+It fills a similar role, but it isn't a generic context tag — and Marko's own
+mechanism is worth knowing.
+
+"Context" usually means sharing a value down the tree without threading it through
+every tag in between — a theme, the current user, a request id. Marko has no
+`<context>` tag for this; its built-in mechanism is `$global` (the same object older
+Marko calls `out.global`): a plain bag of values attached to one render. Two things
+matter about it. It is **not reactive** — writing to `$global` doesn't re-render
+anything. And it exists on **both** the server and the client render, but a value you
+set on the server only reaches the client if you name it in `$global.serializedGlobals`
+(a list/map of keys Marko then serializes into the page — the classic example is a CSP
+nonce). Plain reads of those serialized values are available as `out.global` /
+`$global` on the client.
+
+`<store-provider>` is built on `$global` but is **store-specific**, not a general value
+carrier. It groups stores as a bundle; because a live store can't be serialized it does
+*not* put stores in `serializedGlobals` — instead it rebuilds the stores per request on
+each side from data (the data rides the normal serialized input), so server and client
+end up with matching stores. And since `$global` isn't reactive, the provider rings a
+small internal signal when it mounts so selectors notice the bundle. So the rule of
+thumb: to share a plain value, use `$global` / `serializedGlobals` directly; to share
+*stores*, use `<store-provider>`.
 
 ### Can providers be nested?
 
 Yes. Give each provider a distinct `key`, and a child reads whichever bundle it wants
 by passing the matching key. Two providers sharing a key throw on purpose — that's
 what stops two features from clobbering each other. (Verified by tests.)
+
+The two `key`s play different roles: the **provider's** `key` *names* the bundle (the
+slot it parks under), while a **selector's** or **`<store-context>`'s** `key` *chooses*
+which named bundle to read. It's the same name seen from the writing side and the
+reading side, so set them to match. Omit `key` everywhere and they all use one shared
+default name.
 
 ```marko
 <store-provider key="app" value=(() => ({ session }))>
@@ -251,6 +286,15 @@ and pick the member: `ctx().user.setState(...)`. It only works inside a
 above it, it throws a clear error at render. (The selector's `context` mode is the
 same; only `from` mode works without a provider.)
 
+So when *do* you write through `<store-context>` versus directly? If you already hold a
+store — imported or module-level — you write to it directly: `store.setState(...)`,
+right in the handler. There's no write tag for that case and you don't need one
+(`<store-selector>` only *reads*). `<store-context>` exists for the one case where you
+*don't* hold the store: a `<store-provider>` handed it down, so the child has no direct
+reference, and `<store-context>` is how it reaches back to the bundle to call
+`setState`. (Atoms are the same idea: hold one directly and you use `<store-atom>` or
+`atom.set(...)`.)
+
 ### What about a browser-only app (no server rendering)?
 
 If your app runs only in the browser — a plain single-page app — there's no server
@@ -274,8 +318,10 @@ stores are fine.
 
 A **module-level store** is created once, at the top of a module
 (`static const store = createStore(...)`), and there is a single shared instance for
-the whole process. That is exactly right for a browser-only app — one user, one
-session — and it's what the selector and atom examples above use.
+the whole process. In the browser that's exactly what you want, and here's why: each
+visitor loads the page in their *own* browser, so each gets their own copy of the
+module and their own store instance. Its state builds up over that one session, fully
+isolated from every other user. It's what the selector and atom examples above use.
 
 A **per-request store** is created inside the provider's `value` from incoming data
 (`createStore(input.data)`), so a fresh instance is built for each request, and again
