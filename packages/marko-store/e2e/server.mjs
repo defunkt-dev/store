@@ -22,6 +22,18 @@ const devServer = await createViteServer({
   build: { assetsInlineLimit: 0 },
 })
 
+devServer.middlewares.use((req, res, next) => {
+  // Browsers auto-request /favicon.ico on navigation. Without this, it 404s, and on
+  // newer Playwright that surfaces as a console error which the resume specs (which
+  // assert zero client errors) would fail on. Answer it with an empty 204.
+  if (req.url === '/favicon.ico') {
+    res.statusCode = 204
+    res.end()
+    return
+  }
+  next()
+})
+
 devServer.middlewares.use(async (req, res, next) => {
   try {
     const { handler } = await devServer.ssrLoadModule(

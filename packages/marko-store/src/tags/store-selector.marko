@@ -71,7 +71,6 @@ export interface Input<TSource, TSelected = TSource> {
   }
   onUpdate() {
     const source = resolveSource()
-    const cmp = input.compare ?? defaultCompare
     if (source != null && source !== this.src) {
       this.unsub?.()
       this.src = source
@@ -84,9 +83,12 @@ export interface Input<TSource, TSelected = TSource> {
         if (!c(this.last as any, next)) { this.last = next; value = next as any }
       }).unsubscribe
     } else if (input.selector !== this.sel && this.src != null) {
+      // A deliberate selector swap always takes effect. `compare` exists to drop
+      // redundant updates from store mutations, not to gate a change of selector,
+      // so the new projection is published unconditionally.
       this.sel = input.selector
-      const next = select(this.src.get())
-      if (!cmp(this.last as any, next)) { this.last = next; value = next as any }
+      this.last = select(this.src.get())
+      value = this.last as any
     }
   }
   onDestroy() {

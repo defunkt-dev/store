@@ -6,7 +6,16 @@ export interface Input<T> {
   }
 }
 
-<let/value=input.from().get()>
+<let/value=(() => {
+  const source = input.from()
+  if (typeof (source as { set?: unknown }).set !== 'function') {
+    throw new Error(
+      '<store-atom> expects an atom from createAtom(); the provided value has no set() ' +
+      'method. A Store (createStore) uses setState — read it with <store-selector> instead.'
+    )
+  }
+  return source.get()
+})()>
 
 <lifecycle<{ unsub?: (() => void) | null }>
   onMount() {

@@ -24,6 +24,7 @@ import SelectorSwapHostTemplate from './fixtures/selector-selector-swap-host.mar
 import NoSelectorHostTemplate from './fixtures/selector-no-selector-host.marko'
 import CustomCompareHostTemplate from './fixtures/selector-custom-compare-host.marko'
 import NoSelectorSwapHostTemplate from './fixtures/selector-no-selector-swap-host.marko'
+import SelectorSwapCompareHostTemplate from './fixtures/selector-swap-compare-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const AtomHost = AtomHostTemplate as any
@@ -32,6 +33,7 @@ const SelectorSwapHost = SelectorSwapHostTemplate as any
 const NoSelectorHost = NoSelectorHostTemplate as any
 const CustomCompareHost = CustomCompareHostTemplate as any
 const NoSelectorSwapHost = NoSelectorSwapHostTemplate as any
+const SelectorSwapCompareHost = SelectorSwapCompareHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 
@@ -130,6 +132,15 @@ describe('<store-atom> write path', () => {
     atom.set(42)
     await waitFor(() => expect(cell(el, 'value')).toBe('42'))
   })
+
+  test('rejects a Store with a clear error at render, not on first write (point 9)', () => {
+    // A Store has setState but no set(); <store-atom> writes via set(), so without an
+    // early guard it would seed and read fine and only fail on the first valueChange.
+    const store = createStore({ count: 1 })
+    expect(() => mount(AtomHost, { from: () => store })).toThrow(
+      /<store-atom> expects an atom/,
+    )
+  })
 })
 
 describe('<store-selector> onUpdate', () => {
@@ -192,5 +203,18 @@ describe('<store-selector> onUpdate', () => {
     await waitFor(() =>
       expect(cell(el, 'value')).toBe(JSON.stringify({ count: 101 })),
     )
+  })
+
+  test('a selector swap publishes the new slice even when compare calls it equal (point 8)', async () => {
+    // a=1 and b=2 are within the host's tolerance compare (|1-2| < 10). A compare-gated
+    // swap would treat the new slice as "equal" and keep showing 1; the swap must win.
+    const store = createStore({ a: 1, b: 2 })
+    const el = mount(SelectorSwapCompareHost, { from: () => store })
+    expect(cell(el, 'value')).toBe('1')
+
+    ;(
+      el.querySelector("[data-testid='swap-selector']") as HTMLElement
+    ).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await waitFor(() => expect(cell(el, 'value')).toBe('2'))
   })
 })
