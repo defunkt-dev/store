@@ -2,7 +2,7 @@
 
 Marko 6 adapter for [TanStack Store](https://tanstack.com/store). It re-exports the
 entire `@tanstack/store` core and adds four Marko tags so a component can read a
-store, stay in sync as it changes, and share stores with its children.
+store, stay in sync as it changes, write to it, and share stores with its children.
 
 ## The four tags
 
@@ -10,6 +10,10 @@ store, stay in sync as it changes, and share stores with its children.
 - `<store-atom>` — read and write a single-value atom.
 - `<store-provider>` — hand a group of stores down to children.
 - `<store-context>` — grab those stores from a child in order to write to them.
+
+The last two are a pair: `<store-provider>` shares the stores, and `<store-context>`
+(or a selector in `context` mode) reads them back. `<store-context>` does nothing on
+its own — with no provider above it, it throws (see Sharing stores).
 
 ## Words used in this README
 
@@ -19,8 +23,10 @@ The rest of the doc leans on these, so it's worth pinning them down first.
   listen for changes: `createStore({ count: 0, name: "Ada" })`.
 - **Snapshot** (the store's *value*) — the whole state object right now,
   `{ count: 0, name: "Ada" }`. You read it with `store.state`.
-- **Slice** — the one part of the snapshot you actually care about, e.g. the count.
-  You pick it with a small function: `s => s.count`.
+- **Slice** — the part of a store's snapshot you select to watch. It can be a single
+  field or a few related fields grouped together: `s => s.count`, or
+  `s => ({ id: s.id, name: s.name })`. A slice is a portion of *one store's* state —
+  not the same as a bundle member, which is a whole store inside a bundle (see Bundle).
 - **Selector** — that picking function. `<store-selector>` re-renders only when the
   slice the selector returns changes, not on every store change.
 - **Atom** — a store for a *single value* (`createAtom(0)`) with a direct setter.
@@ -90,6 +96,13 @@ static const store = createStore({ count: 0, name: "Ada" })
 store out of serialized component state, which is what lets the page resume after
 server rendering. It must return the same store every call — don't create the store
 inside it.
+
+(`static const store = ...`, as in the examples, runs once when the module loads — not
+on every render — so the store lives at module level and never becomes part of
+serializable component state. That's why it resumes cleanly and isn't "caught" by
+serialization. The one catch is that a module-level store is shared across requests on
+a server, which is why server rendering builds stores per request instead — see
+Module-level vs per-request stores.)
 
 ### Attributes
 
@@ -233,7 +246,10 @@ per-request input, and resume independently on the client — incrementing the c
 doesn't touch `user`, and either store rehydrates on its own.
 
 `<store-context>` returns a *getter* for the bundle, so write handlers call `ctx()`
-and pick the member: `ctx().user.setState(...)`.
+and pick the member: `ctx().user.setState(...)`. It only works inside a
+`<store-provider>` — there has to be a bundle for it to read — so with no provider
+above it, it throws a clear error at render. (The selector's `context` mode is the
+same; only `from` mode works without a provider.)
 
 ### What about a browser-only app (no server rendering)?
 
