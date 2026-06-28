@@ -197,6 +197,15 @@ Nesting.)
 It fills a similar role, but it isn't a generic context tag — and Marko's own
 mechanism is worth knowing.
 
+First, two ideas worth separating, since both involve "sharing." A **store** is the
+live, changing state itself — you read it, write it, and subscribe to it, and it lasts
+as long as you hold a reference to it. **Context** is only a *delivery* mechanism: a way
+for a value to reach a deep child without threading it through every tag in between. On
+its own, context says nothing about reactivity or how long something lives — it just
+gets a value from an ancestor to its descendants. `<store-provider>` combines the two:
+it delivers a *store* through a context-style channel, so children get both the reach
+of context and the reactivity of a store.
+
 "Context" usually means sharing a value down the tree without threading it through
 every tag in between — a theme, the current user, a request id. Marko v5 did have a
 `<context>` tag for this, but it isn't reactive and doesn't survive resume; Marko 6 —
