@@ -5,3 +5,7 @@
 import { createStore } from '@tanstack/store'
 
 export const ctxCounterStore = createStore({ count: 5 })
+
+// A second, isolated pair for the multiple-stores-in-one-provider e2e.
+export const ctxMultiA = createStore({ count: 5 })
+export const ctxMultiB = createStore({ count: 50 })

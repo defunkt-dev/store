@@ -4,6 +4,7 @@
 import page from './page.marko'
 import contextPage from './context-page.marko'
 import contextPagePerreq from './context-page-perreq.marko'
+import contextPageMulti from './context-page-multi.marko'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 type ServerTemplate = {
@@ -19,6 +20,11 @@ const routes: Record<string, { page: ServerTemplate; input: Record<string, unkno
   '/context-perreq': {
     page: contextPagePerreq as unknown as ServerTemplate,
     input: { $global: {}, initial: { count: 42 } },
+  },
+  // Phase 2b: multiple stores in one provider.
+  '/context-multi': {
+    page: contextPageMulti as unknown as ServerTemplate,
+    input: { $global: {} },
   },
 }
 

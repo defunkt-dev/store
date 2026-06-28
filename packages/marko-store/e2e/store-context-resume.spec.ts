@@ -58,3 +58,31 @@ test('per-request data rebuilds from the serialized payload on resume and stays 
 
   expect(realErrors(), 'client errors during resume').toEqual([])
 })
+
+test('multiple stores in one provider resume independently (read, isolation, and a context write)', async ({
+  page,
+}) => {
+  const realErrors = trackErrors(page)
+  await page.goto('/context-multi')
+
+  await expect(page.getByTestId('resumed')).toHaveText('yes')
+  // each selector seeds from its own bundle member
+  await expect(page.getByTestId('selector-a')).toHaveText('5')
+  await expect(page.getByTestId('selector-b')).toHaveText('50')
+
+  // mutating one store moves only its own selector
+  await page.getByTestId('external-inc-a').click()
+  await expect(page.getByTestId('selector-a')).toHaveText('6')
+  await expect(page.getByTestId('selector-b')).toHaveText('50')
+
+  await page.getByTestId('external-inc-b').click()
+  await expect(page.getByTestId('selector-b')).toHaveText('51')
+  await expect(page.getByTestId('selector-a')).toHaveText('6')
+
+  // a <store-context> write targets only the named member
+  await page.getByTestId('ctx-reset-a').click()
+  await expect(page.getByTestId('selector-a')).toHaveText('0')
+  await expect(page.getByTestId('selector-b')).toHaveText('51')
+
+  expect(realErrors(), 'client errors during resume').toEqual([])
+})

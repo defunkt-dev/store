@@ -10,10 +10,12 @@ import { createStore } from '../src/index'
 import SelectorHostTemplate from './fixtures/ctx-selector-host.marko'
 import WriteHostTemplate from './fixtures/ctx-write-host.marko'
 import NoProviderHostTemplate from './fixtures/ctx-no-provider-host.marko'
+import MultiHostTemplate from './fixtures/ctx-multi-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const WriteHost = WriteHostTemplate as any
 const NoProviderHost = NoProviderHostTemplate as any
+const MultiHost = MultiHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 function mount(T: any, input: Record<string, unknown> = {}) {
@@ -52,5 +54,27 @@ describe('<store-context> write path', () => {
     expect(cell(el, 'count')).toBe('5')
     ;(el.querySelector("[data-testid='btn']") as HTMLButtonElement).click()
     await waitFor(() => expect(cell(el, 'count')).toBe('99'))
+  })
+})
+
+describe('<store-selector context> with multiple stores in one provider', () => {
+  test('each selector reads its own store, they update independently, and a context write targets one', async () => {
+    const a = createStore({ count: 1 })
+    const b = createStore({ count: 100 })
+    const el = mount(MultiHost, { storeA: a, storeB: b })
+    expect(cell(el, 'count-a')).toBe('1')
+    expect(cell(el, 'count-b')).toBe('100')
+
+    a.setState(() => ({ count: 2 }))
+    await waitFor(() => expect(cell(el, 'count-a')).toBe('2'))
+    expect(cell(el, 'count-b')).toBe('100') // b untouched by a's change
+
+    b.setState(() => ({ count: 101 }))
+    await waitFor(() => expect(cell(el, 'count-b')).toBe('101'))
+    expect(cell(el, 'count-a')).toBe('2') // a untouched by b's change
+
+    ;(el.querySelector("[data-testid='write-a']") as HTMLButtonElement).click()
+    await waitFor(() => expect(cell(el, 'count-a')).toBe('9'))
+    expect(cell(el, 'count-b')).toBe('101') // the <store-context> write hit a only
   })
 })
