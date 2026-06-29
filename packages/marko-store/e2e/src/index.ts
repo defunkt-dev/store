@@ -5,6 +5,10 @@ import page from './page.marko'
 import contextPage from './context-page.marko'
 import contextPagePerreq from './context-page-perreq.marko'
 import contextPageMulti from './context-page-multi.marko'
+import streamingLiveness from './streaming-liveness.marko'
+import streamingFillRender from './streaming-fill-render.marko'
+import streamingFillOnmount from './streaming-fill-onmount.marko'
+import streamingOutOfOrder from './streaming-out-of-order.marko'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 type ServerTemplate = {
@@ -24,6 +28,25 @@ const routes: Record<string, { page: ServerTemplate; input: Record<string, unkno
   // Phase 2b: multiple stores in one provider.
   '/context-multi': {
     page: contextPageMulti as unknown as ServerTemplate,
+    input: { $global: {} },
+  },
+  // Phase 3: store liveness across in-order <await> streaming (incl. a late subtree).
+  '/streaming-liveness': {
+    page: streamingLiveness as unknown as ServerTemplate,
+    input: { $global: {} },
+  },
+  // Phase 3 characterization: naive progressive-fill mechanisms (server-only vs client-only).
+  '/streaming-fill-render': {
+    page: streamingFillRender as unknown as ServerTemplate,
+    input: { $global: {} },
+  },
+  '/streaming-fill-onmount': {
+    page: streamingFillOnmount as unknown as ServerTemplate,
+    input: { $global: {} },
+  },
+  // Phase 3: store liveness across an out-of-order (try/placeholder) reordered subtree.
+  '/streaming-out-of-order': {
+    page: streamingOutOfOrder as unknown as ServerTemplate,
     input: { $global: {} },
   },
 }
