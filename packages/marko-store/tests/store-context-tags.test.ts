@@ -12,12 +12,16 @@ import WriteHostTemplate from './fixtures/ctx-write-host.marko'
 import NoProviderHostTemplate from './fixtures/ctx-no-provider-host.marko'
 import MultiHostTemplate from './fixtures/ctx-multi-host.marko'
 import NestedHostTemplate from './fixtures/ctx-nested-host.marko'
+import CustomKeyHostTemplate from './fixtures/ctx-customkey-host.marko'
+import GetterFedHostTemplate from './fixtures/ctx-getter-fed-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const WriteHost = WriteHostTemplate as any
 const NoProviderHost = NoProviderHostTemplate as any
 const MultiHost = MultiHostTemplate as any
 const NestedHost = NestedHostTemplate as any
+const CustomKeyHost = CustomKeyHostTemplate as any
+const GetterFedHost = GetterFedHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 function mount(T: any, input: Record<string, unknown> = {}) {
@@ -96,5 +100,33 @@ describe('nested <store-provider> with distinct keys', () => {
     inner.setState(() => ({ count: 51 }))
     await waitFor(() => expect(cell(el, 'section')).toBe('51'))
     expect(cell(el, 'app')).toBe('2') // outer untouched by inner's change
+  })
+})
+
+describe('<store-provider> + <store-context> with a custom key', () => {
+  test('store-context reads the matching custom-keyed provider, and a write through it propagates', async () => {
+    // The provider parks the bundle under key "custom"; the selector reads it back under
+    // the same key, and <store-context key="custom"> must grab THAT bundle so a write lands.
+    const store = createStore({ count: 5 })
+    const el = mount(CustomKeyHost, { store })
+    expect(cell(el, 'count')).toBe('5') // selector read the custom-keyed bundle
+    ;(el.querySelector("[data-testid='btn']") as HTMLButtonElement).click()
+    await waitFor(() => expect(cell(el, 'count')).toBe('77')) // store-context key="custom" found it
+  })
+})
+
+describe('<store-selector from> fed by <store-context>’s getter', () => {
+  test('seeds correctly and stays live in jsdom (the documented first-paint blank is real-browser-only)', async () => {
+    // Feeding a from-mode selector from ctx() is the path that shows a one-frame blank on a
+    // real browser's FIRST paint (cross-tag timing; server-rendered pages are unaffected). In
+    // jsdom the provider parks before the selector seeds, so ctx() already resolves and there
+    // is no blank — this test pins that jsdom behavior (correct seed + live updates). The
+    // transient blank is environment-specific to a real browser and is not observable here;
+    // capturing it would need a real-browser harness able to sample the very first frame.
+    const store = createStore({ count: 5 })
+    const el = mount(GetterFedHost, { store })
+    expect(cell(el, 'count')).toBe('5') // no blank in jsdom
+    store.setState(() => ({ count: 6 }))
+    await waitFor(() => expect(cell(el, 'count')).toBe('6')) // subscription is live
   })
 })

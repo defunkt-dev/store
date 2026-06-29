@@ -25,6 +25,7 @@ import NoSelectorHostTemplate from './fixtures/selector-no-selector-host.marko'
 import CustomCompareHostTemplate from './fixtures/selector-custom-compare-host.marko'
 import NoSelectorSwapHostTemplate from './fixtures/selector-no-selector-swap-host.marko'
 import SelectorSwapCompareHostTemplate from './fixtures/selector-swap-compare-host.marko'
+import SelectorBothHostTemplate from './fixtures/selector-both-host.marko'
 
 const SelectorHost = SelectorHostTemplate as any
 const AtomHost = AtomHostTemplate as any
@@ -34,6 +35,7 @@ const NoSelectorHost = NoSelectorHostTemplate as any
 const CustomCompareHost = CustomCompareHostTemplate as any
 const NoSelectorSwapHost = NoSelectorSwapHostTemplate as any
 const SelectorSwapCompareHost = SelectorSwapCompareHostTemplate as any
+const SelectorBothHost = SelectorBothHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 
@@ -216,5 +218,16 @@ describe('<store-selector> onUpdate', () => {
       el.querySelector("[data-testid='swap-selector']") as HTMLElement
     ).dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await waitFor(() => expect(cell(el, 'value')).toBe('2'))
+  })
+})
+
+describe('<store-selector> input guards', () => {
+  test('throws at render when given both `from` and `context`', () => {
+    // The two source modes are mutually exclusive; the render-time guard must reject
+    // the ambiguous combination rather than silently preferring one.
+    const store = createStore({ count: 5 })
+    expect(() => mount(SelectorBothHost, { store })).toThrow(
+      'takes either `from` or `context`, not both',
+    )
   })
 })
