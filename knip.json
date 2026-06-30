@@ -9,7 +9,8 @@
         "e2e/src/index.ts",
         "e2e/src/store.ts",
         "e2e/src/context-store.ts",
-        "e2e/src/streaming-store.ts"
+        "e2e/src/streaming-store.ts",
+        "e2e/src/helper-eo.ts"
       ],
       "ignoreDependencies": ["@marko/language-tools", "marko"]
     },

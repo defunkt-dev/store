@@ -1,0 +1,25 @@
+import { createStore } from '@tanstack/store'
+export interface Input { up: number; late: number }
+<!doctype html>
+<html lang='en'>
+  <head><meta charset='utf-8'><title>helper provider-collision</title></head>
+  <body>
+    <let/resumed='no'>
+    <lifecycle onMount() { resumed = 'yes' }/>
+    <div data-testid='resumed'>${resumed}</div>
+    <store-provider key='shared' value=() => ({ counter: createStore({ n: input.up }) })>
+      <store-selector/u key='shared' context=(c: any) => c.counter selector=(s: any) => s.n/>
+      <div data-testid='provider-count'>${u}</div>
+      <try>
+        <await|late|=new Promise((r) => setTimeout(() => r(input.late), 60))>
+          <stream-store-provider key='shared' value=() => ({ counter: createStore({ n: late }) })>
+            <div data-testid='never'>${late}</div>
+          </stream-store-provider>
+        </await>
+        <@catch|err|>
+          <div data-testid='collision-caught'>caught:${(err as Error).message}</div>
+        </@catch>
+      </try>
+    </store-provider>
+  </body>
+</html>

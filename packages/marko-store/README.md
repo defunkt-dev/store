@@ -1,19 +1,24 @@
 # @tanstack/marko-store
 
 Marko 6 adapter for [TanStack Store](https://tanstack.com/store). It re-exports the
-entire `@tanstack/store` core and adds four Marko tags so a component can read a
-store, stay in sync as it changes, write to it, and share stores with its children.
+entire `@tanstack/store` core and adds five Marko tags so a component can read a
+store, stay in sync as it changes, write to it, share stores with its children, and
+build a store from data that streams in.
 
-## The four tags
+## The five tags
 
 - `<store-selector>` — read a value out of a store and re-render when it changes.
 - `<store-atom>` — read and write a single-value atom.
 - `<store-provider>` — hand a group of stores down to children.
 - `<store-context>` — grab those stores from a child in order to write to them.
+- `<stream-store-provider>` — build a store from data that arrives inside a streamed
+  `<await>`, then hand it down like a provider.
 
-The last two are a pair: `<store-provider>` shares the stores, and `<store-context>`
-(or a selector in `context` mode) reads them back. `<store-context>` does nothing on
-its own — with no provider above it, it throws (see Sharing stores).
+`<store-provider>` and `<store-context>` are a pair: `<store-provider>` shares the stores,
+and `<store-context>` (or a selector in `context` mode) reads them back. `<store-context>`
+does nothing on its own — with no provider above it, it throws (see Sharing stores).
+`<stream-store-provider>` is the streaming sibling of `<store-provider>` — the same bundle,
+for data that only shows up inside an `<await>` (see Streaming data into a store).
 
 ## Words used in this README
 
@@ -353,6 +358,164 @@ Rule of thumb: server-rendered → build the stores per request from data; brows
 | `value`   | yes      | Function returning the bundle object (`() => ({ a, b })`).        |
 | `key`     | no       | Name this bundle so a selector/context can target it. Defaults to a shared name. |
 
+## Streaming data into a store: `<stream-store-provider>`
+
+### What "streaming" means here, and in-order vs out-of-order
+
+Server rendering normally sends the whole page at once. **Streaming** lets the server send the
+page in pieces: it flushes the shell immediately, then sends each slow piece — a section waiting on
+a database call, say — later, as its data becomes ready. In Marko you mark a slow piece with
+`<await>`: the shell paints right away, and the awaited block streams in when its promise resolves.
+
+Two slow pieces can finish in either order. **In-order** streaming keeps them in document order — a
+piece that finishes early still waits its turn, so the page fills top to bottom. A plain `<await>`
+is in-order. **Out-of-order** streaming lets a piece that finishes first paint first, even if it
+sits lower in the page, with a placeholder holding its spot until then; you opt into it by wrapping
+the `<await>` in `<try>` with a `<@placeholder>`. Out-of-order reaches first content sooner but
+needs the placeholder slot. `<stream-store-provider>` behaves identically either way.
+
+### Why a separate tag from `<store-provider>`
+
+`<store-provider>` builds its stores up front, in the shell, because their data is ready before the
+page renders. Streamed data isn't ready then — it only exists once the `<await>` resolves, which is
+*after* the shell (and the provider) have already rendered. So the provider can't build a store
+from streamed data: it runs too early. `<stream-store-provider>` is the provider you put *inside*
+the awaited block, where the data finally exists. It builds the store there — on the server as the
+piece renders, and again in the browser as the piece resumes — so the store is **born with the
+data** on both sides. The value paints on the server (no empty first frame, no flash) and the store
+is live after resume, exactly like `<store-provider>`, just sourced from data that arrived late.
+
+Under the hood it is the same machinery as `<store-provider>`: the store is parked on `$global`
+(never serialized), and only the plain awaited value crosses the wire, carried inside the block
+because the `value` thunk names it. A live store is never serialized. This is also why you must not
+hand the awaited data to a store you hold in an ordinary variable inside the block — see Gotchas.
+
+### When to use it, and when not to
+
+Use `<stream-store-provider>` when a store's data arrives **inside a streamed `<await>`** — a
+per-request fetch you have deferred so the shell can paint first. It works whether that `<await>`
+is in-order or wrapped in `<try>` for out-of-order.
+
+Do **not** use it for data that is ready at render — a normal per-request store built from `input`.
+That is `<store-provider>`'s job; reach for it there. And it is not a general "lazy provider": its
+whole reason to exist is the streamed-`<await>` timing, so put it inside an `<await>`. (Used outside
+one it degrades to provider-like behavior and still works, but then you have just written a heavier
+`<store-provider>`.)
+
+Rule of thumb: data ready at render → `<store-provider>`; data that streams in inside an `<await>`
+→ `<stream-store-provider>`.
+
+### Basic use
+
+```marko
+import { createStore } from "@tanstack/store"
+
+export interface Input {
+  userId: string
+}
+
+<await|profile|=fetchProfile(input.userId)>
+  <stream-store-provider key="profile" value=(() => ({ profile: createStore(profile) }))>
+    <store-selector/name context=(c => c.profile) selector=(s => s.name)>
+      <p>${name}</p>
+    </store-selector>
+  </stream-store-provider>
+</await>
+```
+
+`profile` is the awaited data. The `value` thunk closes over it and builds the bundle right there.
+Because the thunk *names* `profile`, Marko ships that data with the block, so the same thunk
+rebuilds the store in the browser when the block resumes. Children read it with `<store-selector>`
+in `context` mode exactly as under `<store-provider>`, and write it through `<store-context>`. The
+`value` thunk and the bundle are identical to `<store-provider>` — a bundle can hold any number of
+stores, each read by its own selector. The only shape difference is *where* the tag goes: inside the
+`<await>`, so it can see the data.
+
+### Out-of-order, and catching errors: `<try>`
+
+The helper is ordering-agnostic — it only builds the store inside the block. Ordering is decided by
+the block around it. A plain `<await>` is in-order. To go out-of-order, wrap the `<await>` in
+`<try>` with a `<@placeholder>`; the block can then paint as soon as its data resolves, with the
+placeholder holding its slot until then:
+
+```marko
+<try>
+  <await|profile|=fetchProfile(input.userId)>
+    <stream-store-provider key="profile" value=(() => ({ profile: createStore(profile) }))>
+      <store-selector/name context=(c => c.profile) selector=(s => s.name)>
+        <p>${name}</p>
+      </store-selector>
+    </stream-store-provider>
+  </await>
+  <@placeholder>
+    <p>Loading…</p>
+  </@placeholder>
+</try>
+```
+
+`<try>` is also Marko's error boundary for a streamed block. If anything inside the `<await>`
+throws — a rejected fetch, or the duplicate-key guard below — add a `<@catch>` and the block renders
+the fallback instead of breaking the stream:
+
+```marko
+<try>
+  <await|profile|=fetchProfile(input.userId)>
+    <stream-store-provider key="profile" value=(() => ({ profile: createStore(profile) }))>
+      <store-selector/name context=(c => c.profile) selector=(s => s.name)>
+        <p>${name}</p>
+      </store-selector>
+    </stream-store-provider>
+  </await>
+  <@catch|err|>
+    <p>Couldn't load that section: ${err.message}</p>
+  </@catch>
+</try>
+```
+
+This is Marko's `<try>` / `<@catch>`, not a JavaScript `try`/`catch`.
+
+### Keys: name the box, and don't share it
+
+`key` works exactly like `<store-provider>`'s, and is **required** here (no default). It names the
+box the bundle is parked in, and the matching `key` on a selector or `<store-context>` chooses which
+box to read. Give each streamed provider a distinct `key`.
+
+A `<store-provider>` and a `<stream-store-provider>` — or two of either — on the **same key** is
+always a mistake: a box holds one bundle, so the second would clobber the first. They detect each
+other and **throw** a duplicate-key error rather than overwrite silently. Wrap the block in
+`<try>` / `<@catch>` if you want that surfaced as a fallback instead of a broken stream (see above).
+`key` is required, with no shared default, precisely so a streamed provider cannot quietly collide
+with a top-level provider's default name.
+
+### Gotchas
+
+- **Do not hold the store in a plain variable inside the block.** Build it through the `value` thunk
+  (which parks it on `$global`); never as `<const/s=createStore(data)/>` inside the `<await>`. A
+  `<const>` becomes part of the block's serialized state, a live store cannot be serialized, and the
+  server render throws "Unable to serialize". The thunk keeps the store off that path. This is the
+  one real trap, and the reason the tag exists instead of a one-liner.
+- **A selector *above* the block** cannot have the data yet — the block has not rendered. It shows
+  its default (empty / `undefined`, since the selector is null-tolerant) and then updates the instant
+  the block lands and the store is parked. A selector *inside* the block shows the value immediately,
+  with no flash. Put readers that must be correct on first paint inside the block.
+- **`<store-context>` above the block throws** at render, because the box is still empty at that
+  point — you cannot grab a streamed store from above where it is created. Read or write the streamed
+  store from inside the block.
+- **Browser-only apps** (no server render) build the store once: the tag guards against the build
+  running twice on a pure client render. You generally do not need streaming in a browser-only app,
+  but it is safe if it appears.
+
+### `<stream-store-provider>` attributes
+
+| Attribute | Required | Description                                                                 |
+| --------- | -------- | --------------------------------------------------------------------------- |
+| `value`   | yes      | Function returning the bundle object (`() => ({ a, b })`), built from the awaited data. Same as `<store-provider>`. |
+| `key`     | yes      | Names this bundle's box so a selector / `<store-context>` can target it. Required, and must be distinct per provider — there is no shared default. |
+
+Reading and writing the streamed stores is unchanged: `<store-selector>` in `context` mode reads a
+member, `<store-context>` reaches the bundle to write, and typing the bundle works the same way
+(see Typing the bundle).
+
 ## Typing the bundle
 
 This section is about TypeScript and editor autocomplete only — it changes nothing at
@@ -392,10 +555,12 @@ functionality one.)
   an empty value for the very first frame and then immediately correct itself. The
   provider fills the bundle a beat before the selector reads it, and a built-in
   recovery step catches up right away. Server-rendered pages don't show this.
-- **Streaming with `<await>`.** Filling stores as awaited data arrives is a planned
-  addition, not shipped yet. The safe rule when it lands: create the stores up front
-  and fill them with `setState` when the data resolves — never create a store from
-  awaited data.
+- **Streaming with `<await>`.** When a store's data arrives inside a streamed `<await>`,
+  build the store right inside the block with `<stream-store-provider>` (see "Streaming
+  data into a store"). It's born with the data on both the server and the client, so the
+  value paints during streaming with no flash and resumes live. The one rule: build the
+  store through the tag's `value` thunk — never hold it in a plain variable inside the
+  block, since a live store can't be serialized with the block's state.
 
 ## License
 
