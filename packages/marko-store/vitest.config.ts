@@ -12,7 +12,7 @@ export default defineConfig({
     watch: false,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
-    coverage: { enabled: true, provider: 'istanbul', include: ['src/**/*'] },
+    coverage: { enabled: true, provider: 'istanbul', include: ['src//*'], exclude: ['/*.d.marko'] },
     typecheck: { enabled: true },
   },
 })

@@ -1,0 +1,17 @@
+/** File for types only, not actual implementation **/
+
+export interface Input<TSource, TSelected = TSource> {
+  from?: () => {
+    get(): TSource
+    subscribe(listener: (value: TSource) => void): { unsubscribe(): void }
+  }
+  context?: (bundle: any) => {
+    get(): TSource
+    subscribe(listener: (value: TSource) => void): { unsubscribe(): void }
+  }
+  key?: string
+  selector?: (snapshot: TSource) => TSelected
+  compare?: (a: TSelected, b: TSelected) => boolean
+}
+
+return=(undefined as unknown as TSelected | undefined)

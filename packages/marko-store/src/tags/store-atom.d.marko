@@ -1,0 +1,15 @@
+/** File for types only, not actual implementation **/
+
+// V maps an untyped (any/unknown) source to `any` so reads stay usable, exactly
+// like the implementation (value = source.get()); a concrete T is preserved.
+export type Value<T> = unknown extends T ? any : T
+
+export interface Input<T> {
+  from: () => {
+    get(): T
+    set(value: T | ((prev: T) => T)): void
+    subscribe(listener: (value: T) => void): { unsubscribe(): void }
+  }
+}
+
+return=(undefined as unknown as Value<T>) valueChange=((next: Value<T>) => input.from().set(next as T))
