@@ -1,0 +1,27 @@
+import { petStore } from './store'
+
+<main>
+  <h1>Marko Store</h1>
+  <p>
+    This example creates a module-level store. Components read state with a
+    selector and update it directly with store.setState.
+  </p>
+
+  <store-selector/cats from=(() => petStore) selector=(s => s.cats)/>
+  <p>Cats: ${cats}</p>
+
+  <store-selector/dogs from=(() => petStore) selector=(s => s.dogs)/>
+  <p>Dogs: ${dogs}</p>
+
+  <store-selector/total from=(() => petStore) selector=(s => s.cats + s.dogs)/>
+  <p>Total votes: ${total}</p>
+
+  <div>
+    <button type='button' onClick() { petStore.setState((prev) => ({ ...prev, cats: prev.cats + 1 })) }>
+      Add cat
+    </button>
+    <button type='button' onClick() { petStore.setState((prev) => ({ ...prev, dogs: prev.dogs + 1 })) }>
+      Add dog
+    </button>
+  </div>
+</main>

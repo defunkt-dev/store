@@ -1,0 +1,35 @@
+import { createStore, createAtom } from '@tanstack/marko-store'
+import CatCard from './CatCard.marko'
+import DogCard from './DogCard.marko'
+import TotalCard from './TotalCard.marko'
+import StoreButtons from './StoreButtons.marko'
+import AtomSummary from './AtomSummary.marko'
+import NestedAtomControls from './NestedAtomControls.marko'
+import DeepAtomEditor from './DeepAtomEditor.marko'
+
+// Marko has no native context, so this example uses the adapter's delivery trio:
+// <store-provider> parks a bundle, children read it with <store-selector context=...>,
+// and writes go through <store-context>. (A real app would give the bundle a named type;
+// the context pickers here use `any` to keep the example focused.)
+<const/votesStore=createStore({ cats: 0, dogs: 0 })>
+<const/countAtom=createAtom(0)>
+
+<store-provider value=() => ({ votesStore, countAtom })>
+  <main>
+    <h1>Marko Store Context</h1>
+    <p>
+      This example provides both a store and an atom through a single context
+      bundle, then reads them from nested components.
+    </p>
+    <CatCard/>
+    <DogCard/>
+    <TotalCard/>
+    <StoreButtons/>
+    <section>
+      <h2>Nested Atom Components</h2>
+      <AtomSummary/>
+      <NestedAtomControls/>
+      <DeepAtomEditor/>
+    </section>
+  </main>
+</store-provider>

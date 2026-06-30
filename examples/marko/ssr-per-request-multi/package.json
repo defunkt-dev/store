@@ -1,0 +1,18 @@
+{
+  "name": "@tanstack/store-example-marko-ssr-per-request-multi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "test:types": "marko-type-check -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tanstack/marko-store": "^0.11.0",
+    "marko": "^6"
+  },
+  "devDependencies": {
+    "@marko/type-check": "^3.1.0",
+    "@marko/vite": "^6",
+    "vite": "^8.0.8"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@tanstack/store-example-marko-simple",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3060",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:types": "marko-type-check -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tanstack/marko-store": "^0.11.0",
+    "marko": "^6"
+  },
+  "devDependencies": {
+    "@marko/type-check": "^3.1.0",
+    "@marko/vite": "^6",
+    "vite": "^8.0.8"
+  }
+}
