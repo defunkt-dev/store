@@ -26,11 +26,22 @@ import { publishStore } from './store-bus'
   return 0
 })()>
 
-<lifecycle onMount() {
-  const g = ($global ?? {}) as Record<string, unknown>
-  if (!g[contextKey]) g[contextKey] = input.value()
-  g[contextKey + '$owner'] = true
-  publishStore()
-}/>
+<lifecycle
+  onMount() {
+    const g = ($global ?? {}) as Record<string, unknown>
+    if (!g[contextKey]) g[contextKey] = input.value()
+    g[contextKey + '$owner'] = true
+    publishStore()
+  }
+  onDestroy() {
+    // Parity with <store-provider>: clear the shelf and the marker on teardown. On the client
+    // $global lives for the page, so without this the store would linger after the subtree
+    // unmounts. Not required to fix any observed bug (the streamed await subtree mounts once and
+    // stays), but it keeps the two providers symmetric and the shelf clean.
+    const g = ($global ?? {}) as Record<string, unknown>
+    g[contextKey] = undefined
+    g[contextKey + '$owner'] = undefined
+  }
+/>
 
 <${input.content}/>
