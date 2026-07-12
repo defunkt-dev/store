@@ -1,0 +1,10 @@
+// Uses a marko-store tag by BARE NAME and writes its two-way value.
+// The write (value++) is the thing under test: if the tag typed correctly,
+// it is writable; if it degraded, you get "TS2540: ... read-only property".
+//
+// Adjust the <store-atom> props below to match the real @tanstack/marko-store
+// store-atom API. The point is only that the tag is used by bare name and its
+// value is assigned to.
+static const src = { get: (): number => 0, set: (_v: number) => {} }
+<store-atom/value from=() => src/>
+<button onClick() { value++ }>${value}</button>

@@ -32,7 +32,7 @@
     "test:lib:dev": "pnpm run test:lib --watch",
     "test:build": "publint --strict",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
-    "build": "tsdown --tsconfig tsconfig.build.json"
+    "build": "tsdown --tsconfig tsconfig.build.json && marko-type-check -p tsconfig.tags.json"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -50,13 +50,11 @@
       }
     },
     "./package.json": "./package.json",
-    "./marko.json": "./marko.json",
-    "./src/tags/*": "./src/tags/*"
+    "./marko.json": "./marko.json"
   },
   "sideEffects": false,
   "files": [
     "dist",
-    "src/tags",
     "marko.json",
     "README.md"
   ],
