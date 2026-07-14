@@ -10,6 +10,6 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.marko",
-    "../../../packages/marko-store/src/tags/*.d.marko"
+    "../../../packages/marko-store/src/tags/**/*"
   ]
 }

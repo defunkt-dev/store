@@ -6,7 +6,11 @@ export interface Input<T> {
   }
 }
 
-<let/value=(() => {
+// Maps an untyped (any/unknown) source to `any` so reads stay usable, exactly
+// like the implementation (value = source.get()); a concrete T is preserved.
+export type Value<T> = unknown extends T ? any : T
+
+<let/value: Value<T> =(() => {
   const source = input.from()
   if (typeof (source as { set?: unknown }).set !== 'function') {
     throw new Error(
@@ -31,6 +35,6 @@ export interface Input<T> {
 
 <return=value
   valueChange(next) {
-    input.from().set(next)
+    input.from().set(next as T)
   }
 >
