@@ -643,6 +643,26 @@ the index vs `marko-type-check` for the tags, with different `include` lists). T
 them use the same tool for opposite ends — one checks and emits nothing, the other
 emits just the tags.
 
+## TypeScript configs
+
+These four `tsconfig` files are about building and type-checking this package
+itself — if you're only *using* `@tanstack/marko-store`, you can skip this. Each does
+one job: two type-check, two emit, split across the two tools involved (`tsdown` for
+the plain-TypeScript index, `marko-type-check` for the `.marko` tags).
+
+| File | What it does | Why it's needed |
+| --- | --- | --- |
+| `tsconfig.json` | The base every other config extends. Holds the shared compiler settings and maps `@tanstack/store` to `../store/src`. | One place for the defaults, used by editors and inherited by the rest. The path mapping gives live types from the sibling `store` package with no build step. |
+| `tsconfig.build.json` | Used by `tsdown` to compile `src/index.ts` into `dist` (the ESM/CJS core re-export). Blanks the `@tanstack/store` path mapping. | The published index must resolve `@tanstack/store` as the real installed dependency — the way a consumer's build sees it — not as local workspace source. |
+| `tsconfig.marko.json` | Used by `marko-type-check` to type-check the whole package, `.marko` files included, writing nothing (`noEmit`). Covers `src`, `tests`, and `e2e`. | Checking `.marko` needs Marko-aware resolution, and the gate should cover tests and e2e too. This is the `test:types:marko` check; a check step should never emit output. |
+| `tsconfig.tags.json` | Used by `marko-type-check` to *build* the tags: compiles `src/tags` into `dist/tags` (stripped `.marko` + generated `.d.marko` + the `store-bus` helper). Scoped to `src/tags` only. | Publishing ships built tags, not raw source. It's scoped so it doesn't rebuild the index (`tsdown` owns that), and unlike the check config it emits (`declaration` on, `noEmit` off). |
+
+Why four rather than one: two things vary and can't share a file — **check vs emit**
+(a config has a single `noEmit` and `outDir`) and **which tool/scope** (`tsdown` for
+the index vs `marko-type-check` for the tags, with different `include` lists). Two of
+them use the same tool for opposite ends — one checks and emits nothing, the other
+emits just the tags.
+
 ## License
 
 MIT
