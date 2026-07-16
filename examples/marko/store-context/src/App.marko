@@ -11,10 +11,11 @@ import DeepAtomEditor from './DeepAtomEditor.marko'
 // <store-provider> parks a bundle, children read it with <store-selector context=...>,
 // and writes go through <store-context>. (A real app would give the bundle a named type;
 // the context pickers here use `any` to keep the example focused.)
-<const/votesStore=createStore({ cats: 0, dogs: 0 })>
-<const/countAtom=createAtom(0)>
-
-<store-provider value=() => ({ votesStore, countAtom })>
+// Build the stores INSIDE the provider's value thunk. Under server rendering a
+// component-local const store would be dead after resume (the component body
+// never re-runs in the browser); the thunk is rebuilt per request on the server
+// and again on the client, which is exactly the per-request pattern.
+<store-provider value=() => ({ votesStore: createStore({ cats: 0, dogs: 0 }), countAtom: createAtom(0) })>
   <main>
     <h1>Marko Store Context</h1>
     <p>

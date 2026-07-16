@@ -31,7 +31,7 @@
     "test:lib": "vitest",
     "test:lib:dev": "pnpm run test:lib --watch",
     "test:build": "publint --strict",
-    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:e2e": "pnpm -C e2e test:e2e",
     "build": "tsdown --tsconfig tsconfig.build.json && marko-type-check -p tsconfig.tags.json"
   },
   "type": "module",
@@ -50,9 +50,12 @@
       }
     },
     "./package.json": "./package.json",
-    "./marko.json": "./marko.json"
+    "./marko.json": "./marko.json",
+    "./dist/tags/*": "./dist/tags/*"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.marko"
+  ],
   "files": [
     "dist",
     "marko.json",
@@ -65,7 +68,6 @@
     "@marko/language-tools": "^2.6.0",
     "@marko/type-check": "^3.1.0",
     "@marko/vite": "^6",
-    "@playwright/test": "^1.60.0",
     "@testing-library/dom": "^10.4.0",
     "marko": "^6"
   },

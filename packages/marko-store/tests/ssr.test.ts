@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest'
 import SsrSelector from './fixtures/ssr-selector.marko'
 import SsrAtom from './fixtures/ssr-atom.marko'
 import SsrObjectAntipattern from './fixtures/ssr-object-antipattern.marko'
+import SsrPayloadHost from './fixtures/ssr-payload-host.marko'
 import { countAtom, counterStore } from './fixtures/ssr-store'
 
 async function renderToString(
@@ -53,6 +54,44 @@ describe('SSR keystone guard — why sources must be thunks', () => {
   it('rejects when a store is passed as a bare object attribute', async () => {
     await expect(
       renderToString(SsrObjectAntipattern, { store: counterStore }),
+    ).rejects.toThrow(/serialize/i)
+  })
+})
+
+describe('SSR serialization boundary — what a resumable payload can carry', () => {
+  // The Marko serializer (runtime-tags/src/html/serializer.ts) supports plain
+  // objects, arrays, Date, Map, Set, RegExp, typed arrays, URL and more; custom
+  // class instances are not serializable and fail loudly in debug builds
+  // (production silently drops them — never rely on prod to catch this). The
+  // fixture forces serialization by capturing the payload in a resumable closure.
+  it('carries strings, nested arrays of objects, Date, Map and Set', async () => {
+    const html = await renderToString(SsrPayloadHost, {
+      payload: {
+        title: 'quarterly report',
+        rows: [
+          { id: 1, tags: ['a', 'b'] },
+          { id: 2, tags: [] },
+        ],
+        when: new Date('2026-07-14T00:00:00.000Z'),
+        tags: new Map([['a', 'alpha']]),
+        ids: new Set([1, 2, 3]),
+      },
+    })
+    expect(cell(html, 'title')).toBe('quarterly report')
+    expect(cell(html, 'date')).toBe('2026-07-14T00:00:00.000Z')
+    expect(cell(html, 'map')).toBe('alpha')
+    expect(cell(html, 'set')).toBe('true')
+    expect(cell(html, 'rows')).toContain('"id":1')
+  })
+
+  it('rejects a custom class instance in the payload', async () => {
+    class Cart {
+      items: Array<{ id: number }> = []
+    }
+    await expect(
+      renderToString(SsrPayloadHost, {
+        payload: { title: 'bad', cart: new Cart() },
+      }),
     ).rejects.toThrow(/serialize/i)
   })
 })

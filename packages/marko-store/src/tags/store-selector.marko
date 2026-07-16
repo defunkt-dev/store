@@ -51,11 +51,18 @@ export interface Input<TSource, TSelected = TSource> {
     const subscribeTo = (source: any) => {
       this.src = source
       this.sel = input.selector
-      this.last = select(source.get())
-      value = this.last as any
+      const cmp = input.compare ?? defaultCompare
+      // Refresh the render-time seed in case the store changed between render and
+      // mount (or the shelf was empty at render) — but let `compare` drop a
+      // redundant reseed. An object/array slice is a fresh identity on every
+      // select() call, so an unconditional assignment would re-render consumers
+      // once at mount with identical content. `this.last` still takes the fresh
+      // slice so future comparisons run against current data.
+      const seeded = select(source.get())
+      if (!cmp(value as any, seeded)) value = seeded as any
+      this.last = seeded
       this.unsub = source.subscribe((snapshot: any) => {
         const next = (input.selector ?? ((s: any) => s))(snapshot)
-        const cmp = input.compare ?? defaultCompare
         if (!cmp(this.last as any, next)) { this.last = next; value = next as any }
       }).unsubscribe
     }

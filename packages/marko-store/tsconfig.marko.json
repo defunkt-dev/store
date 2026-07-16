@@ -4,14 +4,14 @@
     "moduleResolution": "Bundler",
     "noEmit": true,
     "paths": {},
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.marko",
     "tests/**/*.ts",
-    "tests/**/*.marko",
-    "e2e/**/*.ts",
-    "e2e/**/*.marko"
+    "tests/**/*.marko"
   ]
 }

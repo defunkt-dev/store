@@ -5,10 +5,10 @@ resumes and the store stays live (external writes and the atom write work after
 load). The store is a module singleton and is rebuilt on each side, so no live
 store is ever serialized.
 
-This is a development demonstration, run with the Marko Vite dev server. It is
-NOT a deployable production server — real Marko production uses `@marko/run`.
-
 To run this example:
 
 - `npm install`
-- `npm run dev`
+- `npm run dev` (or `npm run preview` for the production build)
+
+It's an `@marko/run` app: the page is server-rendered, resumes in the browser,
+and stays live. `npm run test:e2e` runs its Playwright smoke test.

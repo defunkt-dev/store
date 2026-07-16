@@ -17,4 +17,4 @@ The Marko adapter exposes its API as custom tags. Each tag is documented on its 
 
 ## Re-exports
 
-`@tanstack/marko-store` re-exports the full `@tanstack/store` core, including `createStore`, `createAtom`, `Store`, `Derived`, and `shallow`. These are framework-agnostic; see the Store API Reference for their documentation.
+`@tanstack/marko-store` re-exports the full `@tanstack/store` core, including `createStore`, `createAtom`, `Store`, `batch`, and `shallow`. Derived state comes from the core too — pass a function to `createStore` or `createAtom` to get a computed, read-only store. These are framework-agnostic; see the Store API Reference for their documentation.

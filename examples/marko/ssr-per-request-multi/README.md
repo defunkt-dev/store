@@ -5,11 +5,11 @@ the route: the data crosses in the serialized payload and the store is rebuilt o
 each side. The `/multi` page parks a bundle of two stores in one provider, read
 independently, with a context write targeting one.
 
-This is a development demonstration, run with the Marko Vite dev server. It is
-NOT a deployable production server — real Marko production uses `@marko/run`.
-
 To run this example:
 
 - `npm install`
-- `npm run dev`
+- `npm run dev` (or `npm run preview` for the production build)
+
+It's an `@marko/run` app: the page is server-rendered, resumes in the browser,
+and stays live. `npm run test:e2e` runs its Playwright smoke test.
 - open `/` and `/multi`

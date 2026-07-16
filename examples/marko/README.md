@@ -1,25 +1,23 @@
 # Marko examples for TanStack Store
 
 These mirror the sibling adapter examples (react, svelte, …) using
-`@tanstack/marko-store`.
+`@tanstack/marko-store`. Every example is an [@marko/run](https://github.com/marko-js/run)
+app — Marko's SSR meta-framework and the way real Marko apps ship — so each one
+server-renders, resumes in the browser, and stays live. The parity examples
+(`stores`, `simple`, `atoms`, `store-actions`, `store-context`) demonstrate the
+same scenarios the other frameworks ship; `ssr-resume`, `ssr-per-request-multi`,
+and `streaming` demonstrate the Marko-specific SSR patterns (resume, per-request
+stores, streamed `<await>` data).
 
-Five client-only parity examples — `stores`, `simple`, `atoms`, `store-actions`,
-`store-context` — match the scenarios the other frameworks ship. Each is a
-browser-only SPA: `vite.config.ts` uses `marko({ linked: false })` (Marko + Vite
-is SSR-first, so a client-only build needs `linked: false`), and `src/index.ts`
-mounts the app.
+Each example runs standalone:
 
-Three Marko-specific SSR examples — `ssr-resume`, `ssr-per-request-multi`,
-`streaming` — show server render + resume, per-request data rebuilt on the
-client, and streaming a store into a late `<await>` (born-with-data, in-order and
-out-of-order). Each runs a small Marko Vite dev server (`node server.mjs`); open
-the routes named in its README.
+- `npm install`
+- `npm run dev` — dev server
+- `npm run preview` — production build + serve
+- `npm run test:e2e` — a small Playwright smoke (renders, one interaction, no
+  client errors)
+- `npm run test:types` — `marko-type-check`
 
-Those three SSR servers are development demonstrations, not deployable production
-servers. Real Marko production uses `@marko/run`; a dedicated `@marko/run`
-example will be added separately.
-
-In this monorepo you do not install per example. Add `examples/marko/**` to
-`pnpm-workspace.yaml`, run `pnpm install` once at the root, then start an example
-by folder (`cd examples/marko/<name> && pnpm dev`) or by name
-(`pnpm --filter @tanstack/store-example-marko-<name> dev`).
+Every example carries a `marko.json` (`tags-dir` → the package's `src/tags`) and a
+tsconfig `include` of those tags. This works around a Marko tag-discovery issue
+under pnpm's isolated `node_modules`; when the upstream fix ships, both can go.
