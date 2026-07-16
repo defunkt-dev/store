@@ -18,7 +18,7 @@ Binds a single writable atom from `createAtom()` as a two-way value: it reads th
 
 ## Attributes
 
-- **`from`** — `() => { get(); set(); subscribe() }` (required). A thunk returning the atom (from `createAtom()`). The atom must have a `set` method; a `Store` does not and will throw.
+- **`from`** — `() => { get(); set(); subscribe() } | null` (required). A thunk returning the atom (from `createAtom()`), or `null` while nothing is available yet — the null-tolerant form matters for getter-fed atoms (`from=(() => ctx()?.countAtom ?? null)`), where the context bundle isn't parked for a beat during resume or a browser-only first paint. A non-null value without a `set` method (such as a `Store`) still throws with guidance to use `<store-selector>`.
 
 ## Tag variable
 
@@ -26,4 +26,4 @@ The atom's current value, typed `T`. The tag exposes a `value`/`valueChange` pai
 
 ## Behavior
 
-The value is seeded from `from().get()` at render and kept live by a subscription on mount, so it updates whenever the atom changes from anywhere. Writes go through `from().set(next)`. If `from()` returns something without a `set` method (such as a `Store`), the tag throws with guidance to use `<store-selector>`.
+The value is seeded from `from().get()` at render and kept live by a subscription on mount, so it updates whenever the atom changes from anywhere. Writes go through `from().set(next)`. If `from()` resolves nothing yet (a getter-fed atom before its provider parks the bundle), the tag renders `undefined` for that beat and listens on the internal publish bus, attaching the moment the bundle lands — the same recovery `<store-selector>` performs. If `from()` returns a non-null value without a `set` method (such as a `Store`), the tag throws with guidance to use `<store-selector>`.

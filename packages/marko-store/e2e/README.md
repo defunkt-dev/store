@@ -1,50 +1,56 @@
-# marko-store e2e (resume liveness)
+# marko-store e2e — the production gate
 
-A real-browser proof that an SSR'd page using `<store-selector>` and `<store-atom>` resumes and
-stays reactive. jsdom can render and serialize but cannot faithfully reproduce Marko 6's client
-resume, so this round-trip lives here (Playwright + real Chromium) rather than in the vitest
-suite.
+A nested [@marko/run](https://github.com/marko-js/run) app that is this package's
+end-to-end regression suite. It runs **against the production build, deliberately**:
+`marko-run preview` (production build + serve) is the Playwright `webServer`, so every
+run exercises what consumers actually get — tree-shaking, the hydration registry,
+minified resume. Dev mode does none of that; it is exactly how the `sideEffects`
+hydration bug shipped in a sibling package with a fully green dev-mode suite.
 
-## What it proves
+## Layout
 
-`store-resume-liveness.spec.ts` loads the SSR'd page and checks, in order:
+- `src/routes/<name>/+page.marko` — one route per scenario (file-based routing). Seed
+  values that used to live in the old hand-rolled harness's route table are inlined
+  into the pages, each marked with a `Seeds inlined…` comment.
+- `src/*.ts` — module-singleton stores, kept in separate modules per spec family so
+  specs never share mutable state.
+- `*.spec.ts` — the Playwright specs, one file per scenario.
+- `marko.json` — resolves the package tags from `../src/tags` (source), the same
+  workspace-source arrangement the examples use.
 
-1. **The page resumed** -- a store-independent `data-testid="resumed"` marker flips from `no`
-   (server) to `yes` (client `onMount`). This is the precondition; if it stays `no`, the page
-   never resumed and any further result is inconclusive.
-2. **Seeded values rendered** -- `selector-count` is `5` and `atom-value` is `7`, from the
-   module-singleton `createStore({ count: 5 })` / `createAtom(7)`.
-3. **Selector subscription is live** -- clicking a button that calls `counterStore.setState`
-   from outside any tag moves `selector-count` to `6`.
-4. **Atom write-back is live** -- clicking the atom button (`value++`) flows through the tag's
-   `valueChange` into `countAtom.set` and moves `atom-value` to `8`.
-5. **No serialization crash** -- no `pageerror` / `console.error` during render or resume.
+## What the suite covers
 
-A `resumed=yes` result with a stale value would mean a tag is inert after resume (the failure
-this is designed to catch), distinct from a `resumed=no` setup failure.
+The migrated scenarios: from-mode selector/atom resume liveness, the context delivery
+chain (provider → context-selector → store-context writes), per-request rebuild,
+multi-store providers, in-order and out-of-order `<await>` streaming liveness,
+streamed-helper independence/no-flash/no-JS, error composition rules (duplicate keys,
+provider collisions, context-above-the-stream), and the fill characterizations.
 
-## Architecture
+New in this harness:
 
-- `server.mjs` -- Vite (middleware mode) + `@marko/vite`, on port 5188. It `ssrLoadModule`s the
-  JS entry `src/index.js` (not the `.marko` directly); only the JS-entry path makes `@marko/vite`
-  inject the client `<script>` tags that drive resume.
-- `src/index.js` -- routes `/` to the page and consumes Marko's async `render(...)` iterable.
-- `src/page.marko` -- the HTML wrapper, the resume marker, and the two store scenarios. The
-  package's `marko.json` makes `<store-selector>` / `<store-atom>` available here.
-- `src/store.js` -- the module-singleton stores.
-- `playwright.config.ts` -- boots `server.mjs` and runs every `*.spec.ts` in real Chromium.
+- `gate-render-only.spec.ts` — **the sideEffects hydration gate.** A render-only
+  `<store-selector>` page (no handler touches any package function) is what a
+  production bundler tree-shakes to death under a bad `"sideEffects": false`
+  manifest: the page then never resumes. Verified fail→heal: with `false` the gate
+  fails (resume marker stays `no`); with `"sideEffects": ["**/*.marko"]` the suite is
+  green. Tree-shaking applies the manifest by nearest-`package.json` ownership, so
+  the workspace-source tag channel reproduces the consumer bug faithfully.
+- `payload.spec.ts` — rich payloads (string + nested array of objects, `Date`, `Map`,
+  `Set`) through both provision channels, asserted in server HTML and live after
+  resume.
+- `client-only-first-paint.spec.ts` — the real-browser half of the getter-fed
+  first-paint story: a browser-only mounted subtree recovers to the store value; the
+  observed paint history documents the blank beat when it occurs.
 
-`server.mjs` aliases `@tanstack/store` to its source so the suite runs without first building
-the store package.
+One behavioral note from the migration: a pre-stream render throw (the
+context-above rule) is surfaced by `@marko/run`'s node adapter as a transport-level
+failure (connection dropped before any bytes), not the clean 500 the old hand-rolled
+handler manufactured. The spec asserts the consumer-visible contract — request fails,
+no partial body — and the throw itself stays pinned by the unit fixture.
 
 ## Running
 
-From the package root (`packages/marko-store`):
-
-```sh
-pnpm exec playwright install chromium   # one-time, downloads the browser
-pnpm run test:e2e
 ```
-
-`test:e2e` runs `playwright test --config e2e/playwright.config.ts`. The config starts the dev
-server automatically (and reuses one if it is already running).
+pnpm -C e2e test:e2e   # production build + real Chromium (the gate)
+pnpm -C e2e dev        # dev server, for interactive debugging only
+```

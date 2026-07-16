@@ -16,8 +16,11 @@
 
 import { afterEach, describe, expect, test } from 'vitest'
 import { waitFor } from '@testing-library/dom'
-import { createAtom, createStore } from '../src/index'
+import { batch, createAtom, createStore, shallow } from '../src/index'
+import { publishStore } from '../src/tags/store-bus'
 import SelectorHostTemplate from './fixtures/selector-host.marko'
+import RenderCountHostTemplate from './fixtures/selector-render-count-host.marko'
+import AtomLateContextHostTemplate from './fixtures/atom-late-context-host.marko'
 import AtomHostTemplate from './fixtures/atom-host.marko'
 import SourceSwapHostTemplate from './fixtures/selector-source-swap-host.marko'
 import SelectorSwapHostTemplate from './fixtures/selector-selector-swap-host.marko'
@@ -36,6 +39,8 @@ const CustomCompareHost = CustomCompareHostTemplate as any
 const NoSelectorSwapHost = NoSelectorSwapHostTemplate as any
 const SelectorSwapCompareHost = SelectorSwapCompareHostTemplate as any
 const SelectorBothHost = SelectorBothHostTemplate as any
+const RenderCountHost = RenderCountHostTemplate as any
+const AtomLateContextHost = AtomLateContextHostTemplate as any
 
 const instances: Array<{ destroy: () => void }> = []
 
@@ -229,5 +234,121 @@ describe('<store-selector> input guards', () => {
     expect(() => mount(SelectorBothHost, { store })).toThrow(
       'takes either `from` or `context`, not both',
     )
+  })
+})
+
+describe('<store-selector> object/array slices', () => {
+  // An object (or array) slice is a FRESH REFERENCE on every store change, so the
+  // default `===` compare never reports equal — the classic selector footgun. The
+  // first test documents the over-render; the second proves `shallow` (re-exported
+  // from the core) is the fix. `track` runs from the consuming interpolation, so
+  // its call count IS the consumer re-render count (see the fixture header).
+  test('over-renders under the default compare when an unrelated field changes', async () => {
+    const store = createStore({ id: 1, name: 'Ada', other: 0 })
+    let renders = 0
+    const el = mount(RenderCountHost, {
+      from: () => store,
+      selector: (s: any) => ({ id: s.id, name: s.name }),
+      track: (v: any) => {
+        renders++
+        return JSON.stringify(v)
+      },
+    })
+    expect(cell(el, 'value')).toBe(JSON.stringify({ id: 1, name: 'Ada' }))
+    const before = renders
+
+    // The slice's CONTENTS are unchanged, but it's a new object, so `===` sees a
+    // change and the consumer re-renders — same text, wasted work.
+    store.setState((s) => ({ ...s, other: s.other + 1 }))
+    await waitFor(() => expect(renders).toBeGreaterThan(before))
+    expect(cell(el, 'value')).toBe(JSON.stringify({ id: 1, name: 'Ada' }))
+  })
+
+  test('compare=shallow suppresses the over-render and still passes real changes', async () => {
+    const store = createStore({ id: 1, name: 'Ada', other: 0 })
+    let renders = 0
+    const el = mount(RenderCountHost, {
+      from: () => store,
+      selector: (s: any) => ({ id: s.id, name: s.name }),
+      compare: shallow,
+      track: (v: any) => {
+        renders++
+        return JSON.stringify(v)
+      },
+    })
+    expect(cell(el, 'value')).toBe(JSON.stringify({ id: 1, name: 'Ada' }))
+    const before = renders
+
+    // Unrelated change: shallow sees equal contents, no reassignment, no re-render.
+    store.setState((s) => ({ ...s, other: s.other + 1 }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(renders).toBe(before)
+
+    // Real change to the slice: shallow sees a difference and the value updates.
+    store.setState((s) => ({ ...s, name: 'Grace' }))
+    await waitFor(() =>
+      expect(cell(el, 'value')).toBe(JSON.stringify({ id: 1, name: 'Grace' })),
+    )
+  })
+})
+
+describe('write batching', () => {
+  // Verified against the core directly: an unbatched double `setState` in one tick
+  // notifies subscribers twice; `batch()` collapses it to a single notification
+  // carrying the final state. The selector runs once per notification, so its call
+  // count observes exactly that at the tag level.
+  test('batch() collapses two same-tick writes into one selector update', async () => {
+    const store = createStore({ count: 0 })
+    let selectorCalls = 0
+    const el = mount(SelectorHost, {
+      from: () => store,
+      selector: (s: any) => {
+        selectorCalls++
+        return s.count
+      },
+    })
+    expect(cell(el, 'value')).toBe('0')
+
+    const beforeUnbatched = selectorCalls
+    store.setState(() => ({ count: 1 }))
+    store.setState(() => ({ count: 2 }))
+    await waitFor(() => expect(cell(el, 'value')).toBe('2'))
+    expect(selectorCalls - beforeUnbatched).toBe(2)
+
+    const beforeBatched = selectorCalls
+    batch(() => {
+      store.setState(() => ({ count: 3 }))
+      store.setState(() => ({ count: 4 }))
+    })
+    await waitFor(() => expect(cell(el, 'value')).toBe('4'))
+    expect(selectorCalls - beforeBatched).toBe(1)
+  })
+})
+
+describe('<store-atom> late-source recovery', () => {
+  // The gap the store-context example exposed under SSR: a getter-fed atom whose
+  // source is empty at mount used to crash the resume effect chain and take every
+  // other tag on the page down with it. The tag now tolerates the empty beat and
+  // attaches via the publish bus when a provider parks — mirroring the selector.
+  test('tolerates an empty source at mount and attaches when the bundle is published', async () => {
+    const atom = createAtom(7)
+    let source: any = null
+    const el = mount(AtomLateContextHost, { from: () => source })
+    // Empty beat: no crash, blank value.
+    expect(cell(el, 'value')).toBe('')
+
+    // The provider parks and rings the bus; the tag attaches and seeds.
+    source = atom
+    publishStore()
+    await waitFor(() => expect(cell(el, 'value')).toBe('7'))
+
+    // Fully live both ways after the late attach.
+    atom.set(8)
+    await waitFor(() => expect(cell(el, 'value')).toBe('8'))
+    ;(el.querySelector("[data-testid='inc']") as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await waitFor(() => expect(cell(el, 'value')).toBe('9'))
+    expect(atom.get()).toBe(9)
   })
 })

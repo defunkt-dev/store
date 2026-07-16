@@ -3,21 +3,37 @@
   "workspaces": {
     "packages/marko-store": {
       "entry": [
-        "src/index.ts",
-        "src/tags/**/*",
-        "e2e/server.mjs",
-        "e2e/src/index.ts",
-        "e2e/src/store.ts",
-        "e2e/src/context-store.ts",
-        "e2e/src/streaming-store.ts",
-        "e2e/src/helper-eo.ts"
+        "src/tags/**/*"
       ],
-      "ignoreDependencies": ["@marko/language-tools", "marko"]
+      "ignoreDependencies": [
+        "@marko/language-tools",
+        "marko"
+      ]
     },
     "packages/vue-store": {
-      "ignoreDependencies": ["vue2", "vue2.7"]
+      "ignoreDependencies": [
+        "vue2",
+        "vue2.7"
+      ]
+    },
+    "packages/marko-store/e2e": {
+      "entry": [
+        "src/routes/**/+page.marko",
+        "src/*.ts",
+        "*.spec.ts"
+      ],
+      "ignore": [
+        ".marko-run/**"
+      ],
+      "ignoreDependencies": [
+        "@marko/language-tools"
+      ]
     }
   },
-  "ignoreWorkspaces": ["examples/**"],
-  "ignore": ["packages/store/src/signal.ts"]
+  "ignoreWorkspaces": [
+    "examples/**"
+  ],
+  "ignore": [
+    "packages/store/src/signal.ts"
+  ]
 }

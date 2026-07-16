@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
-import marko from '@marko/vite'
+import marko from '@marko/run/vite'
 
-// linked: false => browser-only build (a client-only SPA, mounted in src/index.ts).
 export default defineConfig({
-  plugins: [marko({ linked: false })],
+  plugins: [marko() as any],
 })

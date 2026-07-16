@@ -5,6 +5,12 @@ entire `@tanstack/store` core and adds five Marko tags so a component can read a
 store, stay in sync as it changes, write to it, share stores with its children, and
 build a store from data that streams in.
 
+The re-exported core includes everything you'd import from `@tanstack/store`
+directly — `createStore`, `createAtom`, `batch`, `shallow`, and friends. Derived
+state is part of that core too: pass a function to `createStore`
+(`createStore(() => count.state * 2)`) and read the result through
+`<store-selector>` like any other store.
+
 ## The five tags
 
 - `<store-selector>` — read a value out of a store and re-render when it changes.
@@ -145,6 +151,36 @@ not re-render:
   <p>${name}</p>
 </store-selector>
 ```
+
+**Object and array slices need `compare=shallow`.** A selector that returns an object
+or array (`s => ({ id: s.id, name: s.name })`) builds a *fresh reference on every
+store change*, so the default `===` compare never sees two equal slices — the tag
+re-renders on every change to the store, even ones your slice doesn't care about.
+Pass `shallow` (re-exported from the core) to compare contents instead of identity:
+
+```marko
+import { shallow } from "@tanstack/marko-store"
+
+<store-selector/user
+  from=(() => store)
+  selector=(s => ({ id: s.id, name: s.name }))
+  compare=((a, b) => shallow(a, b))
+>
+  <p>${user.name}</p>
+</store-selector>
+```
+
+`shallow` compares one level deep and also understands `Map`, `Set`, and `Date`.
+Single-field slices (`s => s.count`) don't need it — primitives compare fine
+with `===`.
+
+One rule on **server-rendered pages**: pass it through an inline arrow,
+`compare=((a, b) => shallow(a, b))`, as in the snippet above written inline. The
+tag's input crosses Marko's serialization boundary on resume, and a bare imported
+function isn't serializable (inline functions in `.marko` files are
+compiler-registered; imports from plain JS are not — the dev server fails loudly
+with "Unable to serialize … reading compare"). In a browser-only mount,
+`compare=shallow` directly is fine.
 
 `context` — read a store out of a bundle a `<store-provider>` shared, instead of from
 a store you hold directly:
@@ -351,6 +387,16 @@ per-request stores. A browser-only app doesn't have that problem, so either work
 Rule of thumb: server-rendered → build the stores per request from data; browser-only
 → module-level stores are fine.
 
+There's a third shape that looks like a fix for the leak but is broken under server
+rendering: creating the store as a local `const` *inside a component*
+(`<const/store=createStore(...)>` or a plain `const` in the component's body). It's
+per-request on the server, but the client is dead: Marko's resume doesn't re-run the
+component's body in the browser, so that store is never recreated there — handlers
+fire, `setState` hits an instance nothing is subscribed to, and selectors never move.
+Under server rendering, share stores through `<store-provider>` (which rebuilds them
+on the client) or use a module-level store; don't create one inside a single
+component and expect it to be live after resume.
+
 ### `<store-provider>` attributes
 
 | Attribute | Required | Description                                                       |
@@ -550,6 +596,11 @@ functionality one.)
 
 - **Server-rendered page.** Every tag paints correctly on the first render, and the
   page picks up live updates after it hydrates. Nothing special to do.
+- **Don't create stores inside a component under SSR.** A store built as a local
+  `const` inside a component renders fine on the server but is dead in the browser —
+  resume doesn't re-run the component's body, so the store is never recreated
+  client-side. Provide stores via `<store-provider>` or at module level instead
+  (see "Module-level vs per-request stores").
 - **Browser-only first paint.** When a page is mounted purely in the browser (not
   server-rendered) and a selector reads from a context bundle, that selector can show
   an empty value for the very first frame and then immediately correct itself. The
@@ -561,6 +612,36 @@ functionality one.)
   value paints during streaming with no flash and resumes live. The one rule: build the
   store through the tag's `value` thunk — never hold it in a plain variable inside the
   block, since a live store can't be serialized with the block's state.
+- **What store data can cross the wire.** Anything Marko's serializer supports can sit
+  in the data your stores are built from: primitives (including `bigint`), plain
+  objects and arrays (nested fine), `Date`, `Map`, `Set`, `RegExp`, typed arrays and
+  `ArrayBuffer`, `URL`/`URLSearchParams`, and errors. What can't: instances of your own
+  classes, DOM nodes, and functions Marko didn't register (top-level/template functions
+  are fine). In dev, a non-serializable value fails loudly with an "Unable to serialize"
+  error pointing at the offending code; a production build silently drops it — so trust
+  the dev error, never prod, to catch this. Keep server-provided store data as plain
+  data (or the supported built-ins) and you'll never meet either behavior. The source
+  of truth is Marko's `runtime-tags/src/html/serializer.ts`.
+
+## TypeScript configs
+
+These four `tsconfig` files are about building and type-checking this package
+itself — if you're only *using* `@tanstack/marko-store`, you can skip this. Each does
+one job: two type-check, two emit, split across the two tools involved (`tsdown` for
+the plain-TypeScript index, `marko-type-check` for the `.marko` tags).
+
+| File | What it does | Why it's needed |
+| --- | --- | --- |
+| `tsconfig.json` | The base every other config extends. Holds the shared compiler settings and maps `@tanstack/store` to `../store/src`. | One place for the defaults, used by editors and inherited by the rest. The path mapping gives live types from the sibling `store` package with no build step. |
+| `tsconfig.build.json` | Used by `tsdown` to compile `src/index.ts` into `dist` (the ESM/CJS core re-export). Blanks the `@tanstack/store` path mapping. | The published index must resolve `@tanstack/store` as the real installed dependency — the way a consumer's build sees it — not as local workspace source. |
+| `tsconfig.marko.json` | Used by `marko-type-check` to type-check the whole package, `.marko` files included, writing nothing (`noEmit`). Covers `src`, `tests`, and `e2e`. | Checking `.marko` needs Marko-aware resolution, and the gate should cover tests and e2e too. This is the `test:types:marko` check; a check step should never emit output. |
+| `tsconfig.tags.json` | Used by `marko-type-check` to *build* the tags: compiles `src/tags` into `dist/tags` (stripped `.marko` + generated `.d.marko` + the `store-bus` helper). Scoped to `src/tags` only. | Publishing ships built tags, not raw source. It's scoped so it doesn't rebuild the index (`tsdown` owns that), and unlike the check config it emits (`declaration` on, `noEmit` off). |
+
+Why four rather than one: two things vary and can't share a file — **check vs emit**
+(a config has a single `noEmit` and `outDir`) and **which tool/scope** (`tsdown` for
+the index vs `marko-type-check` for the tags, with different `include` lists). Two of
+them use the same tool for opposite ends — one checks and emits nothing, the other
+emits just the tags.
 
 ## TypeScript configs
 

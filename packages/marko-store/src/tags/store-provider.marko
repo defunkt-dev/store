@@ -9,7 +9,7 @@ import { publishStore } from './store-bus'
 <const/contextKey=input.key ?? '__tanstack_store_context'>
 
 <const/_park=(() => {
-  const g = ($global ?? {}) as Record<string, unknown>
+  const g = ($global ?? {}) as unknown as Record<string, unknown>
   const marker = contextKey + '$owner'
   if (g[marker]) {
     throw new Error(
@@ -24,13 +24,13 @@ import { publishStore } from './store-bus'
 
 <lifecycle
   onMount() {
-    const g = ($global ?? {}) as Record<string, unknown>
+    const g = ($global ?? {}) as unknown as Record<string, unknown>
     g[contextKey] = input.value()
     g[contextKey + '$owner'] = true
     publishStore()
   }
   onDestroy() {
-    const g = ($global ?? {}) as Record<string, unknown>
+    const g = ($global ?? {}) as unknown as Record<string, unknown>
     g[contextKey] = undefined
     g[contextKey + '$owner'] = undefined
   }
